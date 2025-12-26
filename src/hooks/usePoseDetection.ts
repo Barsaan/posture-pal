@@ -2,14 +2,12 @@
  * Custom hook for pose detection using MediaPipe Pose
  * 
  * This hook handles:
- * - Loading the MediaPipe Pose model
+ * - Loading the MediaPipe Pose model from CDN
  * - Processing video frames to detect body landmarks
  * - Calculating posture angles and classification
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Pose, Results, POSE_CONNECTIONS } from '@mediapipe/pose';
-import { Camera } from '@mediapipe/camera_utils';
 
 // Posture states
 export type PostureStatus = 'initializing' | 'good' | 'bad';
@@ -26,14 +24,14 @@ export interface Landmarks {
 export interface PostureData {
   status: PostureStatus;
   landmarks: Landmarks;
-  neckAngle: number;      // Angle of head forward tilt
-  backAngle: number;      // Angle of spine from vertical
-  confidence: number;     // Detection confidence
+  neckAngle: number;
+  backAngle: number;
+  confidence: number;
 }
 
-// Thresholds for posture classification (in degrees)
-const BACK_ANGLE_THRESHOLD = 15;  // Max degrees spine can tilt forward
-const NECK_FORWARD_THRESHOLD = 0.08; // Normalized distance nose can be forward of shoulders
+// Thresholds for posture classification
+const BACK_ANGLE_THRESHOLD = 15;
+const NECK_FORWARD_THRESHOLD = 0.08;
 
 // MediaPipe landmark indices
 const NOSE = 0;
@@ -42,6 +40,14 @@ const RIGHT_SHOULDER = 12;
 const LEFT_HIP = 23;
 const RIGHT_HIP = 24;
 
+// Pose connections for drawing skeleton
+export const POSE_CONNECTIONS: [number, number][] = [
+  [11, 12], // shoulders
+  [11, 23], // left side
+  [12, 24], // right side
+  [23, 24], // hips
+];
+
 interface UsePoseDetectionReturn {
   postureData: PostureData;
   isModelLoading: boolean;
@@ -49,6 +55,30 @@ interface UsePoseDetectionReturn {
   startDetection: (video: HTMLVideoElement) => void;
   stopDetection: () => void;
 }
+
+// Declare global types for MediaPipe
+declare global {
+  interface Window {
+    Pose: any;
+    Camera: any;
+  }
+}
+
+// Load script dynamically
+const loadScript = (src: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.crossOrigin = 'anonymous';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+    document.head.appendChild(script);
+  });
+};
 
 export const usePoseDetection = (): UsePoseDetectionReturn => {
   const [postureData, setPostureData] = useState<PostureData>({
@@ -68,31 +98,21 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const poseRef = useRef<Pose | null>(null);
-  const cameraRef = useRef<Camera | null>(null);
+  const poseRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const animationRef = useRef<number | null>(null);
 
-  /**
-   * Calculate the angle between two points and vertical axis
-   * Returns angle in degrees (0 = straight up, positive = leaning forward)
-   */
   const calculateAngleFromVertical = (
     top: { x: number; y: number },
     bottom: { x: number; y: number }
   ): number => {
-    // Vector from bottom to top point
     const dx = top.x - bottom.x;
-    const dy = bottom.y - top.y; // Inverted because y increases downward
-    
-    // Angle from vertical (0 degrees = straight up)
+    const dy = bottom.y - top.y;
     const angleRad = Math.atan2(dx, dy);
-    const angleDeg = (angleRad * 180) / Math.PI;
-    
-    return angleDeg;
+    return (angleRad * 180) / Math.PI;
   };
 
-  /**
-   * Classify posture based on calculated angles
-   */
   const classifyPosture = (
     landmarks: Landmarks,
     backAngle: number,
@@ -108,9 +128,6 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
       return 'initializing';
     }
 
-    // Bad posture conditions:
-    // 1. Back angle exceeds threshold (slouching/leaning)
-    // 2. Head is too far forward (forward head posture)
     const isBackAngleBad = Math.abs(backAngle) > BACK_ANGLE_THRESHOLD;
     const isHeadForward = neckForwardDistance > NECK_FORWARD_THRESHOLD;
 
@@ -121,17 +138,13 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
     return 'good';
   };
 
-  /**
-   * Process pose detection results
-   */
-  const onResults = useCallback((results: Results) => {
+  const onResults = useCallback((results: any) => {
     if (!results.poseLandmarks) {
       return;
     }
 
     const lm = results.poseLandmarks;
 
-    // Extract landmarks (coordinates are normalized 0-1)
     const landmarks: Landmarks = {
       nose: lm[NOSE] ? { x: lm[NOSE].x, y: lm[NOSE].y } : null,
       leftShoulder: lm[LEFT_SHOULDER] ? { x: lm[LEFT_SHOULDER].x, y: lm[LEFT_SHOULDER].y } : null,
@@ -140,22 +153,18 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
       rightHip: lm[RIGHT_HIP] ? { x: lm[RIGHT_HIP].x, y: lm[RIGHT_HIP].y } : null,
     };
 
-    // Calculate midpoints
-    let shoulderMidX = 0;
-    let shoulderMidY = 0;
+    let shoulderMidX = 0, shoulderMidY = 0;
     if (landmarks.leftShoulder && landmarks.rightShoulder) {
       shoulderMidX = (landmarks.leftShoulder.x + landmarks.rightShoulder.x) / 2;
       shoulderMidY = (landmarks.leftShoulder.y + landmarks.rightShoulder.y) / 2;
     }
 
-    let hipMidX = 0;
-    let hipMidY = 0;
+    let hipMidX = 0, hipMidY = 0;
     if (landmarks.leftHip && landmarks.rightHip) {
       hipMidX = (landmarks.leftHip.x + landmarks.rightHip.x) / 2;
       hipMidY = (landmarks.leftHip.y + landmarks.rightHip.y) / 2;
     }
 
-    // Calculate back angle (spine deviation from vertical)
     let backAngle = 0;
     if (shoulderMidY !== 0 && hipMidY !== 0) {
       backAngle = calculateAngleFromVertical(
@@ -164,43 +173,44 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
       );
     }
 
-    // Calculate how far forward the nose is from shoulder line (normalized)
     let neckForwardDistance = 0;
     if (landmarks.nose && shoulderMidX !== 0) {
       neckForwardDistance = Math.abs(landmarks.nose.x - shoulderMidX);
     }
 
-    // Classify posture
     const status = classifyPosture(landmarks, backAngle, neckForwardDistance);
 
     setPostureData({
       status,
       landmarks,
-      neckAngle: neckForwardDistance * 100, // Scale for display
+      neckAngle: neckForwardDistance * 100,
       backAngle,
-      confidence: 0.9, // MediaPipe doesn't provide per-frame confidence easily
+      confidence: 0.9,
     });
   }, []);
 
-  /**
-   * Initialize MediaPipe Pose
-   */
   useEffect(() => {
     const initPose = async () => {
       try {
-        // Dynamically import the pose detection module
-        const { Pose } = await import('@mediapipe/pose');
-        
-        const pose = new Pose({
-          locateFile: (file) => {
-            console.log('Loading MediaPipe file:', file);
-            // Always use CDN with specific version for consistency
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
+        // Load MediaPipe scripts from CDN
+        await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
+        await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
+
+        // Wait for scripts to initialize
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (!window.Pose) {
+          throw new Error('MediaPipe Pose not loaded');
+        }
+
+        const pose = new window.Pose({
+          locateFile: (file: string) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
           },
         });
 
         pose.setOptions({
-          modelComplexity: 0, // Lite model for speed
+          modelComplexity: 0,
           smoothLandmarks: true,
           enableSegmentation: false,
           minDetectionConfidence: 0.5,
@@ -208,6 +218,9 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
         });
 
         pose.onResults(onResults);
+
+        // Initialize the model
+        await pose.initialize();
 
         poseRef.current = pose;
         setIsModelLoading(false);
@@ -221,21 +234,23 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
     initPose();
 
     return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
       if (cameraRef.current) {
         cameraRef.current.stop();
       }
     };
   }, [onResults]);
 
-  /**
-   * Start pose detection on a video element
-   */
   const startDetection = useCallback((video: HTMLVideoElement) => {
-    if (!poseRef.current) return;
+    if (!poseRef.current || !window.Camera) return;
 
-    const camera = new Camera(video, {
+    videoRef.current = video;
+
+    const camera = new window.Camera(video, {
       onFrame: async () => {
-        if (poseRef.current) {
+        if (poseRef.current && video.readyState >= 2) {
           await poseRef.current.send({ image: video });
         }
       },
@@ -247,10 +262,11 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
     cameraRef.current = camera;
   }, []);
 
-  /**
-   * Stop pose detection
-   */
   const stopDetection = useCallback(() => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
     if (cameraRef.current) {
       cameraRef.current.stop();
       cameraRef.current = null;
@@ -265,6 +281,3 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
     stopDetection,
   };
 };
-
-// Re-export for skeleton drawing
-export { POSE_CONNECTIONS };
