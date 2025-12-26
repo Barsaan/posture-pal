@@ -1,53 +1,73 @@
-# Welcome to your Lovable project
+# Posture Guard - AI-Powered Posture Detection
 
-## Project info
+![Posture Guard Banner](/posture.jpg)
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Real-time AI-powered posture detection system that helps you maintain proper sitting posture using your webcam. Get instant feedback to prevent back pain and improve your sitting habits.
 
-## How can I edit this code?
+## ✨ Features
 
-There are several ways of editing your application.
+- 🖥️ Real-time posture detection using your webcam
+- 📊 Posture analysis and feedback
+- ⏱️ Session tracking and statistics
+- 🔔 Posture alerts and reminders
+- 🌙 Dark/Light mode support
+- 🚀 Built with React, TypeScript, and TensorFlow.js
 
-**Use Lovable**
+## 🚀 Getting Started
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js 18+ and npm
+- Webcam access
+- Modern web browser with WebRTC support
 
-**Use your preferred IDE**
+### Installation
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. Clone the repository:
+   ```sh
+   git clone https://github.com/Barsaan/posture-pal.git
+   cd posture-pal
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+2. Install dependencies:
+   ```sh
+   npm install
+   ```
 
-Follow these steps:
+3. Start the development server:
+   ```sh
+   npm run dev
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+4. Open [http://localhost:5173](http://localhost:5173) in your browser
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## 🛠️ Built With
 
-# Step 3: Install the necessary dependencies.
-npm i
+- [React](https://reactjs.org/) - Frontend library
+- [TypeScript](https://www.typescriptlang.org/) - Type checking
+- [Vite](https://vitejs.dev/) - Build tool
+- [TensorFlow.js](https://www.tensorflow.org/js) - Machine learning
+- [shadcn/ui](https://ui.shadcn.com/) - UI components
+- [Tailwind CSS](https://tailwindcss.com/) - Styling
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+## 🤝 Contributing
 
-**Edit a file directly in GitHub**
+Contributions are welcome! Feel free to open an issue or submit a pull request.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-**Use GitHub Codespaces**
+## 📄 License
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [MediaPipe Pose](https://google.github.io/mediapipe/solutions/pose) for the pose detection model
+- [shadcn/ui](https://ui.shadcn.com/) for the beautiful UI components
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
