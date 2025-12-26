@@ -74,10 +74,11 @@ const Index = () => {
               </div>
             </div>
             <a
-              href="https://github.com"
+              href="https://github.com/Barsaan/posture-pal"
               target="_blank"
               rel="noopener noreferrer"
               className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
+              aria-label="View source code on GitHub"
             >
               <Github className="w-5 h-5 text-muted-foreground" />
             </a>
