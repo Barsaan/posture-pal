@@ -1,6 +1,6 @@
 # Posture Guard - AI-Powered Posture Detection
 
-![Posture Guard Banner](/posture.jpg)
+![Posture Guard Banner](public/posture.jpg)
 
 Real-time AI-powered posture detection system that helps you maintain proper sitting posture using your webcam. Get instant feedback to prevent back pain and improve your sitting habits.
 
