@@ -48,14 +48,6 @@ export const POSE_CONNECTIONS: [number, number][] = [
   [23, 24], // hips
 ];
 
-interface UsePoseDetectionReturn {
-  postureData: PostureData;
-  isModelLoading: boolean;
-  error: string | null;
-  startDetection: (video: HTMLVideoElement) => void;
-  stopDetection: () => void;
-}
-
 // Declare global types for MediaPipe
 declare global {
   interface Window {
@@ -64,7 +56,7 @@ declare global {
   }
 }
 
-// Load script dynamically
+// Helper: Load script dynamically
 const loadScript = (src: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) {
@@ -80,63 +72,74 @@ const loadScript = (src: string): Promise<void> => {
   });
 };
 
-export const usePoseDetection = (): UsePoseDetectionReturn => {
-  const [postureData, setPostureData] = useState<PostureData>({
-    status: 'initializing',
-    landmarks: {
-      nose: null,
-      leftShoulder: null,
-      rightShoulder: null,
-      leftHip: null,
-      rightHip: null,
-    },
-    neckAngle: 0,
-    backAngle: 0,
-    confidence: 0,
-  });
+// Helper: Calculate angle from vertical
+const calculateAngleFromVertical = (
+  top: { x: number; y: number },
+  bottom: { x: number; y: number }
+): number => {
+  const dx = top.x - bottom.x;
+  const dy = bottom.y - top.y;
+  const angleRad = Math.atan2(dx, dy);
+  return (angleRad * 180) / Math.PI;
+};
+
+// Helper: Classify posture based on angles
+const classifyPosture = (
+  landmarks: Landmarks,
+  backAngle: number,
+  neckForwardDistance: number
+): PostureStatus => {
+  const hasRequiredLandmarks = 
+    landmarks.leftShoulder && 
+    landmarks.rightShoulder && 
+    landmarks.leftHip && 
+    landmarks.rightHip;
   
+  if (!hasRequiredLandmarks) {
+    return 'initializing';
+  }
+
+  const isBackAngleBad = Math.abs(backAngle) > BACK_ANGLE_THRESHOLD;
+  const isHeadForward = neckForwardDistance > NECK_FORWARD_THRESHOLD;
+
+  if (isBackAngleBad || isHeadForward) {
+    return 'bad';
+  }
+
+  return 'good';
+};
+
+// Initial posture data state
+const initialPostureData: PostureData = {
+  status: 'initializing',
+  landmarks: {
+    nose: null,
+    leftShoulder: null,
+    rightShoulder: null,
+    leftHip: null,
+    rightHip: null,
+  },
+  neckAngle: 0,
+  backAngle: 0,
+  confidence: 0,
+};
+
+interface UsePoseDetectionReturn {
+  postureData: PostureData;
+  isModelLoading: boolean;
+  error: string | null;
+  startDetection: (video: HTMLVideoElement) => void;
+  stopDetection: () => void;
+}
+
+export const usePoseDetection = (): UsePoseDetectionReturn => {
+  // All hooks at the top level, in consistent order
+  const [postureData, setPostureData] = useState<PostureData>(initialPostureData);
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const poseRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const animationRef = useRef<number | null>(null);
-
-  const calculateAngleFromVertical = (
-    top: { x: number; y: number },
-    bottom: { x: number; y: number }
-  ): number => {
-    const dx = top.x - bottom.x;
-    const dy = bottom.y - top.y;
-    const angleRad = Math.atan2(dx, dy);
-    return (angleRad * 180) / Math.PI;
-  };
-
-  const classifyPosture = (
-    landmarks: Landmarks,
-    backAngle: number,
-    neckForwardDistance: number
-  ): PostureStatus => {
-    const hasRequiredLandmarks = 
-      landmarks.leftShoulder && 
-      landmarks.rightShoulder && 
-      landmarks.leftHip && 
-      landmarks.rightHip;
-    
-    if (!hasRequiredLandmarks) {
-      return 'initializing';
-    }
-
-    const isBackAngleBad = Math.abs(backAngle) > BACK_ANGLE_THRESHOLD;
-    const isHeadForward = neckForwardDistance > NECK_FORWARD_THRESHOLD;
-
-    if (isBackAngleBad || isHeadForward) {
-      return 'bad';
-    }
-
-    return 'good';
-  };
 
   const onResults = useCallback((results: any) => {
     if (!results.poseLandmarks) {
@@ -190,6 +193,8 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
     const initPose = async () => {
       try {
         // Load MediaPipe scripts from CDN
@@ -198,6 +203,8 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
 
         // Wait for scripts to initialize
         await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (!mounted) return;
 
         if (!window.Pose) {
           throw new Error('MediaPipe Pose not loaded');
@@ -222,21 +229,23 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
         // Initialize the model
         await pose.initialize();
 
+        if (!mounted) return;
+
         poseRef.current = pose;
         setIsModelLoading(false);
       } catch (err) {
         console.error('Error loading MediaPipe Pose:', err);
-        setError('Failed to load pose detection model');
-        setIsModelLoading(false);
+        if (mounted) {
+          setError('Failed to load pose detection model');
+          setIsModelLoading(false);
+        }
       }
     };
 
     initPose();
 
     return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
+      mounted = false;
       if (cameraRef.current) {
         cameraRef.current.stop();
       }
@@ -245,8 +254,6 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
 
   const startDetection = useCallback((video: HTMLVideoElement) => {
     if (!poseRef.current || !window.Camera) return;
-
-    videoRef.current = video;
 
     const camera = new window.Camera(video, {
       onFrame: async () => {
@@ -263,10 +270,6 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
   }, []);
 
   const stopDetection = useCallback(() => {
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
-    }
     if (cameraRef.current) {
       cameraRef.current.stop();
       cameraRef.current = null;
