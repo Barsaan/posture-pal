@@ -188,13 +188,13 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
   useEffect(() => {
     const initPose = async () => {
       try {
+        // Dynamically import the pose detection module
+        const { Pose } = await import('@mediapipe/pose');
+        
         const pose = new Pose({
           locateFile: (file) => {
-            // In production, use CDN for mediapipe files
-            if (process.env.NODE_ENV === 'production') {
-              return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
-            }
-            // In development, use local node_modules
+            console.log('Loading MediaPipe file:', file);
+            // Always use CDN with specific version for consistency
             return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
           },
         });

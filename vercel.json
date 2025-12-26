@@ -5,7 +5,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:;"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net https://*.google.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; media-src 'self' blob:; worker-src 'self' blob:; child-src 'self' blob:; frame-src 'self' blob:;"
         },
         {
           "key": "Cross-Origin-Opener-Policy",
@@ -14,6 +14,14 @@
         {
           "key": "Cross-Origin-Embedder-Policy",
           "value": "require-corp"
+        },
+        {
+          "key": "Cross-Origin-Resource-Policy",
+          "value": "cross-origin"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
         }
       ]
     }
