@@ -190,7 +190,12 @@ export const usePoseDetection = (): UsePoseDetectionReturn => {
       try {
         const pose = new Pose({
           locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+            // In production, use CDN for mediapipe files
+            if (process.env.NODE_ENV === 'production') {
+              return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
+            }
+            // In development, use local node_modules
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
           },
         });
 
